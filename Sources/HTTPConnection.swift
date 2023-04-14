@@ -239,9 +239,6 @@ public final class HTTPConnection {
             return
         }
         guard data.count > 0 else {
-            // TODO: support keep-alive connection here?
-            logger.info("Finish response")
-            transport.close()
             return
         }
         transport.write(data: data)
