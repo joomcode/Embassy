@@ -20,6 +20,11 @@ public final class HTTPConnection {
         case sendingBody
     }
 
+    enum Kind: String {
+        case keepAlive = "keep-alive"
+        case close
+    }
+
     public let logger = DefaultLogger()
     public let uuid: String = UUID().uuidString
     public let transport: Transport
@@ -31,6 +36,7 @@ public final class HTTPConnection {
 
     private(set) var requestState: RequestState = .parsingHeader
     private(set) var responseState: ResponseState = .sendingHeader
+    private(set) var kind: Kind = .close
     private(set) public var eventLoop: EventLoop!
     private var headerParser: HTTPHeaderParser!
     private var headerElements: [HTTPHeaderParser.Element] = []
@@ -162,6 +168,10 @@ public final class HTTPConnection {
             environ["embassy.version"] = "unknown"
         }
 
+        if let kindRawValue = request.headers["Connection"], let kind = Kind(rawValue: kindRawValue) {
+            self.kind = kind
+        }
+
         if let contentLength = request.headers["Content-Length"], let length = Int(contentLength) {
             self.contentLength = length
         }
@@ -238,7 +248,15 @@ public final class HTTPConnection {
             logger.error("Response is not ready for sending body")
             return
         }
+
         guard data.count > 0 else {
+            switch kind {
+            case .keepAlive:
+                break
+            case .close:
+                logger.info("Finish response")
+                transport.close()
+            }
             return
         }
         transport.write(data: data)
