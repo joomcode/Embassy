@@ -134,6 +134,11 @@ public final class Transport {
                 // (usually means that this function was called by resumeReading)
                 return
             }
+            guard number != ECONNRESET else {
+                // if it's ECONNRESET, it means the other side abruptly closed its end of the connection.
+                closedByPeer()
+                return
+            }
             fatalError("Failed to read, errno=\(errno), message=\(lastErrorDescription())")
         } catch {
             fatalError("Failed to read")
